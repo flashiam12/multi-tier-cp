@@ -1,0 +1,40 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: ControlCenter
+metadata:
+  name: controlcenter
+  namespace: zone
+spec:
+  monitoringKafkaClusters:
+    - bootstrapEndpoint: kafka-0.kafka.zone-dr.svc.cluster.local:9092
+      discovery:
+        name: kafka
+        namespace: zone-dr
+      name: kafka-dr
+  replicas: 1
+  image:
+    application: confluentinc/cp-enterprise-control-center:7.4.0
+    init: confluentinc/confluent-init-container:2.6.0
+  dataVolumeCapacity: 10Gi
+  podTemplate:
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true
+  dependencies:
+    kafka:
+      bootstrapEndpoint: kafka-0.kafka.zone.svc.cluster.local:9092
+    schemaRegistry:
+      url: http://schemaregistry.zone.svc.cluster.local:8081
+      clusters:
+        - name: schemaregistry-dr
+          url: http://schemaregistry.zone-dr.svc.cluster.local:8081
+    connect:
+      - url: http://connect.station.svc.cluster.local:8083
+        name: connect-station
+      - url: http://connect.zone.svc.cluster.local:8083
+        name: connect-zone
+    ksqldb: 
+      - name: ksql-zone
+        url: http://ksqldb.zone.svc.cluster.local:8088
+        advertisedUrl: http://localhost:8088
+

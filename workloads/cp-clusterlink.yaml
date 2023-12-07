@@ -1,0 +1,59 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaRestClass
+metadata:
+  name: dest-krc
+  namespace: zone
+spec:
+  kafkaClusterRef: 
+    name: kafka
+  kafkaRest:
+    endpoint: http://kafka.zone-dr.svc.cluster.local:8090
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaRestClass
+metadata:
+  name: dest-krc
+  namespace: zone-dr
+spec:
+  kafkaClusterRef: 
+    name: kafka
+  kafkaRest:
+    endpoint: http://kafka.zone.svc.cluster.local:8090
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: ClusterLink
+metadata:
+  name: primary-to-dr-clusterlink
+  namespace: zone
+spec:
+  destinationKafkaCluster:
+    kafkaRestClassRef: 
+      name: dest-krc 
+      namespace: zone
+  sourceKafkaCluster:
+    bootstrapEndpoint: kafka-0.kafka.zone.svc.cluster.local:9092
+    kafkaRestClassRef:
+      name: source-krc
+      namespace: zone
+  mirrorTopics:
+    - name: zone-ticket-topic
+    - name: zone-ticket-topic-enriched
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: ClusterLink
+metadata:
+  name: dr-to-primary-clusterlink
+  namespace: zone-dr
+spec:
+  destinationKafkaCluster:
+    kafkaRestClassRef: 
+      name: dest-krc 
+      namespace: zone-dr
+  sourceKafkaCluster:
+    bootstrapEndpoint: kafka-0.kafka.zone.svc.cluster.local:9092
+    kafkaRestClassRef:
+      name: source-krc
+      namespace: zone
+  mirrorTopics:
+    - name: dr-zone-ticket-topic
+    - name: dr-zone-ticket-topic-enriched

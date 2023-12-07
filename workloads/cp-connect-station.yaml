@@ -1,0 +1,66 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: Connect
+metadata:
+  name: connect
+  namespace: station
+spec:
+  replicas: 1
+  image:
+    application: confluentinc/cp-server-connect:7.4.0
+    init: confluentinc/confluent-init-container:2.4.0
+  build:
+    type: onDemand
+    onDemand:
+      plugins:
+        locationType: confluentHub
+        confluentHub:
+          - name: debezium-connector-postgresql
+            owner: debezium
+            version: 2.2.1
+  dependencies:
+    kafka:
+      bootstrapEndpoint: kafka-0.kafka.zone.svc.cluster.local:9092
+  podTemplate:
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connector
+metadata:
+  name: unreserved-db-station-01
+  namespace: station
+spec:
+  class: "io.debezium.connector.postgresql.PostgresConnector"
+  taskMax: 1
+  connectClusterRef:
+    name: connect
+  configs:
+    name: unreserved-db-station-01
+    connector.class: io.debezium.connector.postgresql.PostgresConnector
+    plugin.name: pgoutput
+    topic.prefix: unreserved
+    tasks.max: "4"
+    database.hostname: postgresql-station-client.station.svc.cluster.local
+    database.port: "5432"
+    database.user: postgres
+    database.password: crisdemo2023
+    database.dbname: unreserved
+    database.server.name: postgres-db-postgresql
+    output.data.format: JSON
+    after.state.only: "false"
+    decimal.handling.mode: double
+    slot.name: "station_cp_connect"
+    snapshot.mode: always
+    transforms: ExtractField
+    transforms.ExtractField.field: after
+    transforms.ExtractField.type: org.apache.kafka.connect.transforms.ExtractField$Value
+    value.converter: io.confluent.connect.json.JsonSchemaConverter
+    key.converter: io.confluent.connect.json.JsonSchemaConverter
+    value.converter.schemas.enable: "false"
+    key.converter.schemas.enable: "false"
+    key.converter.use.latest.version: "true"
+    value.converter.use.latest.version: "true"
+    key.converter.schema.registry.url: http://schemaregistry.zone.svc.cluster.local:8081
+    value.converter.schema.registry.url: http://schemaregistry.zone.svc.cluster.local:8081

@@ -1,0 +1,102 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: Zookeeper
+metadata:
+  name: zookeeper
+  namespace: zone-dr
+spec:
+  replicas: 1
+  image:
+    application: confluentinc/cp-zookeeper:7.3.0
+    init: confluentinc/confluent-init-container:2.3.1
+  dataVolumeCapacity: 10Gi
+  logVolumeCapacity: 10Gi
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Kafka
+metadata:
+  name: kafka
+  namespace: zone-dr
+spec:
+  replicas: 1
+  image:
+    application: confluentinc/cp-server:7.3.0
+    init: confluentinc/confluent-init-container:2.3.1
+  dataVolumeCapacity: 10Gi
+  podTemplate:
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: SchemaRegistry
+metadata:
+  name: schemaregistry
+  namespace: zone-dr
+spec:
+  replicas: 1
+  image:
+    application: confluentinc/cp-schema-registry:7.3.0
+    init: confluentinc/confluent-init-container:2.3.1
+  dependencies:
+    kafka:
+      bootstrapEndpoint: kafka-0.kafka.zone-dr.svc.cluster.local:9092
+  podTemplate:
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaRestProxy
+metadata:
+  name: kafkarestproxy
+  namespace: zone-dr
+spec:
+  dependencies:
+    schemaRegistry:
+      url: http://schemaregistry.zone-dr.svc.cluster.local:8081
+    kafka:
+      bootstrapEndpoint: kafka-0.kafka.zone-dr.svc.cluster.local:9092
+  image:
+    application: confluentinc/cp-kafka-rest:7.3.0
+    init: confluentinc/confluent-init-container:2.3.1
+  replicas: 1
+  podTemplate:
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaRestClass
+metadata:
+  name: source-krc
+  namespace: zone-dr
+spec:
+  kafkaClusterRef:
+    name: kafka
+  kafkaRest:
+    endpoint: http://kafka.zone-dr.svc.cluster.local:8090
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: dr-zone-ticket-topic
+  namespace: zone-dr
+spec:
+  replicas: 1
+  partitionCount: 6
+  kafkaRestClassRef:
+    name: source-krc
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: dr-zone-ticket-topic-enriched
+  namespace: zone-dr
+spec:
+  replicas: 1
+  partitionCount: 6
+  kafkaRestClassRef:
+    name: source-krc

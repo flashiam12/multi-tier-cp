@@ -1,0 +1,24 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: KsqlDB
+metadata:
+  name: ksqldb
+  namespace: zone
+spec:
+  replicas: 1 
+  dependencies:
+    kafka:
+      bootstrapEndpoint: kafka-0.kafka.zone.svc.cluster.local:9092
+    schemaRegistry:
+      url: http://schemaregistry.zone.svc.cluster.local:8081
+    connect: 
+      url: http://connect.zone.svc.cluster.local:8083
+  image:
+    application: confluentinc/cp-ksqldb-server:7.3.0
+    init: confluentinc/confluent-init-container:2.4.0
+  dataVolumeCapacity: 10Gi
+  logVolumeCapacity: 5Gi
+  podTemplate:
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true

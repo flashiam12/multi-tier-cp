@@ -1,0 +1,89 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: Connect
+metadata:
+  name: connect
+  namespace: zone
+spec:
+  replicas: 1
+  image:
+    application: confluentinc/cp-server-connect:7.4.0
+    init: confluentinc/confluent-init-container:2.4.0
+  build:
+    type: onDemand
+    onDemand:
+      plugins:
+        locationType: confluentHub
+        confluentHub:
+          - name: kafka-connect-jdbc
+            owner: confluentinc 
+            version: 10.7.0
+  dependencies:
+    kafka:
+      bootstrapEndpoint: kafka-0.kafka.zone.svc.cluster.local:9092
+    schemaRegistry:
+      url: http://schemaregistry.zone.svc.cluster.local:8081
+  podTemplate:
+    podSecurityContext:
+      fsGroup: 1000
+      runAsUser: 1000
+      runAsNonRoot: true
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connector
+metadata:
+  name: unreserved-db-zone
+  namespace: zone
+spec:
+  class: "io.confluent.connect.jdbc.JdbcSinkConnector"
+  taskMax: 4
+  connectClusterRef:
+    name: connect
+  configs:
+    name: unreserved-db-zone
+    connector.class: io.confluent.connect.jdbc.JdbcSinkConnector
+    connection.url: jdbc:postgresql://postgresql-zone-centralized.zone.svc.cluster.local:5432/unreserved
+    connection.user: postgres
+    connection.password: crisdemo2023
+    insert.mode: upsert
+    pk.mode: record_key
+    pk.fields: customer_id
+    auto.create: "true"
+    auto.evolve: "true"
+    delete.enabled: "true"
+    topics: "zone-ticket-topic"
+    value.converter: io.confluent.connect.json.JsonSchemaConverter
+    key.converter: io.confluent.connect.json.JsonSchemaConverter
+    key.converter.schema.registry.url: http://schemaregistry.zone.svc.cluster.local:8081
+    value.converter.schema.registry.url: http://schemaregistry.zone.svc.cluster.local:8081
+    key.converter.use.latest.version: "true"
+    value.converter.use.latest.version: "true"
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Connector
+metadata:
+  name: unreserved-db-zone-warehouse
+  namespace: zone
+spec:
+  class: "io.confluent.connect.jdbc.JdbcSinkConnector"
+  taskMax: 4
+  connectClusterRef:
+    name: connect
+  configs:
+    name: unreserved-db-zone-warehouse
+    connector.class: io.confluent.connect.jdbc.JdbcSinkConnector
+    connection.url: jdbc:clickhouse://clickhouse-dw.zone-dw.svc.cluster.local:8123/default
+    connection.user: crisadmin
+    connection.password: crisdemo2023
+    insert.mode: upsert
+    pk.mode: record_key
+    pk.fields: customer_id
+    auto.create: "true"
+    auto.evolve: "true"
+    delete.enabled: "true"
+    topics: "zone-ticket-topic-enriched"
+    value.converter: io.confluent.connect.json.JsonSchemaConverter
+    key.converter: io.confluent.connect.json.JsonSchemaConverter
+    key.converter.schema.registry.url: http://schemaregistry.zone.svc.cluster.local:8081
+    value.converter.schema.registry.url: http://schemaregistry.zone.svc.cluster.local:8081
+    key.converter.use.latest.version: "true"
+    value.converter.use.latest.version: "true"
